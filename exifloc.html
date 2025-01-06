@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Read GPS Data from Image EXIF</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #output {
+      margin-top: 20px;
+    }
+    #imagePreview {
+      max-width: 300px;
+      max-height: 300px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+    }
+    .message {
+      color: red;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Read GPS Data from Image</h1>
+  <p>Select an image to extract its GPS coordinates:</p>
+
+  <input type="file" id="photoInput" accept="image/*">
+
+  <div id="output">
+    <h3>Extracted Data:</h3>
+    <p id="gpsData">GPS Data: <span>N/A</span></p>
+    <p id="error" class="message"></p>
+    <img id="imagePreview" alt="Preview will appear here">
+  </div>
+
+  <script>
+    document.getElementById('photoInput').addEventListener('change', function (event) {
+      const file = event.target.files[0];
+
+      if (!file) {
+        document.getElementById('error').textContent = 'No file selected!';
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        // Display the selected image
+        const imagePreview = document.getElementById('imagePreview');
+        imagePreview.src = e.target.result;
+
+        // Read EXIF metadata
+        EXIF.getData(file, function () {
+          const lat = EXIF.getTag(this, "GPSLatitude");
+          const lon = EXIF.getTag(this, "GPSLongitude");
+          const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+          const lonRef = EXIF.getTag(this, "GPSLongitudeRef");
+
+          if (lat && lon) {
+            const latitude = convertDMSToDecimal(lat, latRef);
+            const longitude = convertDMSToDecimal(lon, lonRef);
+            document.getElementById('gpsData').textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+            document.getElementById('error').textContent = ''; // Clear any error message
+          } else {
+            document.getElementById('gpsData').textContent = 'No GPS data found in this image.';
+            document.getElementById('error').textContent = 'Ensure the image has GPS data embedded in its EXIF metadata.';
+          }
+        });
+      };
+
+      reader.onerror = function () {
+        document.getElementById('error').textContent = 'Failed to load the file.';
+      };
+
+      reader.readAsDataURL(file);
+
+      // Helper function to convert DMS to Decimal Degrees
+      function convertDMSToDecimal(dms, ref) {
+        const degrees = dms[0].numerator / dms[0].denominator;
+        const minutes = dms[1].numerator / dms[1].denominator / 60;
+        const seconds = dms[2].numerator / dms[2].denominator / 3600;
+        let decimal = degrees + minutes + seconds;
+
+        if (ref === "S" || ref === "W") {
+          decimal *= -1;
+        }
+
+        return decimal.toFixed(6);
+      }
+    });
+  </script>
+</body>
+</html>
